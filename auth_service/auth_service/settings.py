@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-()comk&i@fznjn@c=#+2t$&4(s&%e-p&av5w#=x-t)x&fg)0^e
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']  # Allow requests from API Gateway
+ALLOWED_HOSTS = ['*', 'auth_service', 'localhost', '127.0.0.1']  # Allow requests from API Gateway
 
 
 # Application definition

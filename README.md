@@ -1,29 +1,64 @@
-# Microservices Project - Quick Start Guide
+# Microservices E-Commerce System
 
-## Prerequisites
-- Python 3.12+
-- Nginx (for API Gateway)
-- RabbitMQ (for message broker)
-- Docker & Docker Compose (optional, for containerized setup)
+A distributed microservices application demonstrating authentication, order management, and event-driven notifications using Django, Nginx, RabbitMQ, and Docker.
 
-## Local Development Setup
+## Overview
 
-### 1. Start RabbitMQ
+This project implements a microservices architecture where users can register, authenticate, create orders, and receive notifications. The system consists of:
+
+- **API Gateway (Nginx)**: Single entry point with JWT validation
+- **Auth Service**: User registration, login, and JWT token management
+- **Order Service**: Order creation and management
+- **Notification Service**: Stores and retrieves user notifications
+- **Notification Consumer**: Background worker processing RabbitMQ events
+- **RabbitMQ**: Message broker for asynchronous event processing
+
+When a user creates an order, the order service publishes an event to RabbitMQ, which triggers the notification consumer to create a notification automatically.
+
+## Technology Stack
+
+- Django 5.2 + Django REST Framework
+- JWT Authentication (djangorestframework-simplejwt)
+- Nginx (API Gateway with auth_request module)
+- RabbitMQ 3.13
+- Docker & Docker Compose
+- Python 3.12
+
+## Setup
+
+### Option 1: Docker Compose (Recommended)
+
 ```bash
-# Using Docker
-docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management-alpine
+# Start all services
+docker-compose up -d
 
-# Or install locally and start the service
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
 ```
 
-### 2. Start Django Services
+**Access Points:**
+- API Gateway: `http://localhost`
+- RabbitMQ Management: `http://localhost:15672` (guest/guest)
 
-Open 4 terminal windows:
+### Option 2: Manual Setup
+
+#### 1. Start RabbitMQ
+
+```bash
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management-alpine
+```
+
+#### 2. Start Django Services
+
+Open 4 separate terminals:
 
 **Terminal 1 - Auth Service:**
 ```bash
 cd auth_service
-source venv/bin/activate  # or use your virtual environment
+source venv/bin/activate
 python manage.py runserver 8000
 ```
 
@@ -46,163 +81,78 @@ python manage.py runserver 8002
 cd notification_service
 source venv/bin/activate
 python notifications/consumer.py
-# Or run from project root:
-# python -m notification_service.notifications.consumer
 ```
 
-### 3. Setup Nginx API Gateway (ONE-TIME SETUP)
+#### 3. Setup API Gateway
 
-**IMPORTANT:** You can do this in ANY terminal (doesn't need to be a new one). Nginx runs as a background service, so after setup, it keeps running automatically.
-
-**Option A: Using Docker (Easiest - Recommended)**
-
-Open a terminal (can be any terminal, even one you're already using) and run:
-
+**Using Docker:**
 ```bash
-# Navigate to project root if not already there
-cd ~/Projects/microservices_project
-
-# Run Nginx in Docker (runs in background)
-docker run -d \
-  --name api_gateway \
-  -p 80:80 \
-  -v $(pwd)/api_gateway/nginx.conf:/etc/nginx/conf.d/default.conf \
-  --network host \
-  nginx:alpine
-
-# Verify it's running
-docker ps | grep api_gateway
+docker run -d --name api_gateway -p 80:80 \
+  -v $(pwd)/api_gateway/nginx.local.conf:/etc/nginx/conf.d/default.conf \
+  --network host nginx:alpine
 ```
 
-That's it! Nginx is now running. You can close this terminal - Nginx will keep running.
-
-**Option B: Manual Setup (Install Nginx on your system)**
-
-Open a terminal and run these commands ONE TIME:
-
+**Or install Nginx locally:**
 ```bash
-# 1. Install Nginx
-sudo apt-get update
-sudo apt-get install nginx
+# Install Nginx
+sudo apt-get update && sudo apt-get install nginx
 
-# 2. Navigate to project root
-cd ~/Projects/microservices_project
-
-# 3. Copy configuration file
+# Copy configuration
 sudo cp api_gateway/nginx.local.conf /etc/nginx/sites-available/api_gateway
-
-# 4. Enable the site
 sudo ln -s /etc/nginx/sites-available/api_gateway /etc/nginx/sites-enabled/
-
-# 5. Remove default site (optional, but recommended)
 sudo rm /etc/nginx/sites-enabled/default
 
-# 6. Test configuration (make sure no errors)
+# Test and start
 sudo nginx -t
-
-# 7. Start Nginx (runs in background)
 sudo systemctl restart nginx
-
-# 8. Check if Nginx is running
-sudo systemctl status nginx
 ```
 
-**After setup:** Nginx runs automatically in the background. You don't need to keep the terminal open. It will start automatically when you reboot your computer too.
+## API Endpoints
 
-**To stop Nginx later (if needed):**
-- Docker: `docker stop api_gateway`
-- Manual: `sudo systemctl stop nginx`
+### Authentication (Public)
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login and get JWT tokens
 
-**To start Nginx again:**
-- Docker: `docker start api_gateway`
-- Manual: `sudo systemctl start nginx`
+### Orders (Protected - Requires JWT)
+- `GET /api/orders/` - List user's orders
+- `POST /api/orders/` - Create new order
+- `GET /api/orders/{id}/` - Get order details
+- `PUT /api/orders/{id}/` - Update order
+- `DELETE /api/orders/{id}/` - Delete order
 
-## Testing the API Gateway
+### Notifications (Protected - Requires JWT)
+- `GET /api/notifications/` - List user's notifications
+- `GET /api/notifications/{id}/` - Get notification details
 
-### 1. Register a User
+## Quick Test
+
 ```bash
+# 1. Register
 curl -X POST http://localhost/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "email": "test@example.com",
-    "password": "testpass123",
-    "password2": "testpass123"
-  }'
-```
+  -d '{"username":"user","email":"user@example.com","password":"pass123","password2":"pass123"}'
 
-### 2. Login and Get JWT Token
-```bash
+# 2. Login (copy the access token from response)
 curl -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "testpass123"
-  }'
-```
+  -d '{"username":"user","password":"pass123"}'
 
-Response will include `access` and `refresh` tokens. Copy the `access` token.
-
-### 3. Create an Order (with JWT)
-```bash
+# 3. Create Order (replace YOUR_TOKEN with access token from step 2)
 curl -X POST http://localhost/api/orders \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE" \
-  -d '{
-    "product_name": "Laptop",
-    "quantity": 1
-  }'
-```
+  -d '{"product_name":"Laptop","quantity":2}'
 
-**Note:** The `user_id` is automatically extracted from the JWT token by the API Gateway. You don't need to include it in the request.
-
-### 4. Get User's Orders
-```bash
-curl -X GET http://localhost/api/orders \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE"
-```
-
-### 5. Get User's Notifications
-```bash
+# 4. Get Notifications
 curl -X GET http://localhost/api/notifications \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
-
-## Using Docker Compose (All-in-One)
-
-```bash
-# Build and start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-## Architecture Flow
-
-1. **Client** → API Gateway (Nginx) with JWT token
-2. **API Gateway** → Validates JWT via Auth Service `/users/validate/`
-3. **API Gateway** → Extracts `user_id` from validated JWT
-4. **API Gateway** → Forwards request to Order/Notification Service with `X-User-ID` header
-5. **Order Service** → Creates order with `user_id` from header
-6. **Order Service** → Publishes event to RabbitMQ
-7. **Notification Consumer** → Listens to RabbitMQ and creates notification
-
-## Troubleshooting
-
-- **Nginx 502 Bad Gateway**: Check if Django services are running on correct ports
-- **401 Unauthorized**: Verify JWT token is valid and not expired
-- **No notifications**: Ensure RabbitMQ is running and notification consumer is active
-- **Connection refused**: Check service ports and firewall settings
 
 ## Service Ports
 
-- API Gateway (Nginx): `80`
+- API Gateway: `80`
 - Auth Service: `8000`
 - Order Service: `8001`
 - Notification Service: `8002`
-- RabbitMQ: `5672` (AMQP), `15672` (Management UI)
-
+- RabbitMQ AMQP: `5672`
+- RabbitMQ Management: `15672`

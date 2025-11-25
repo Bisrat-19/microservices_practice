@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-j(po=*r4qhxk4mq7rce4am^^jetrz$12pvo^nx2ab66h+u4wuo
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']  # Allow requests from API Gateway
+ALLOWED_HOSTS = ['*', 'order_service', 'localhost', '127.0.0.1']  # Allow requests from API Gateway
 
 
 # Application definition

@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-$@c4w3qb#+3v^*+&)la3k7po4shfeo44owsve4#8n3*_1mt*7b
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']  # Allow requests from API Gateway
+ALLOWED_HOSTS = ['*', 'notification_service', 'localhost', '127.0.0.1']  # Allow requests from API Gateway
 
 
 # Application definition
