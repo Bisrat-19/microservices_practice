@@ -32,10 +32,6 @@ class AuthViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get', 'post'], permission_classes=[AllowAny])
     def validate(self, request):
-        """
-        JWT validation endpoint for Nginx auth_request module.
-        Validates the JWT token and returns user info in response headers.
-        """
         jwt_auth = JWTAuthentication()
         try:
             # Extract and validate JWT token

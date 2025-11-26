@@ -3,13 +3,10 @@ from rest_framework.response import Response
 from rest_framework import serializers
 from .models import Order
 from .serializers import OrderSerializer
-import pika
-import json
-import os
-import time
+import pika, json, os, time
 from django.conf import settings
 
-# Get RabbitMQ host from environment variable, default to 'localhost' for local development
+
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -17,7 +14,6 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
 
     def get_queryset(self):
-        # Filter orders by user_id from JWT token (passed via header by API Gateway)
         user_id = self.request.headers.get('X-User-ID')
         if user_id:
             return Order.objects.filter(user_id=int(user_id))
@@ -43,7 +39,6 @@ class OrderViewSet(viewsets.ModelViewSet):
                     time.sleep(retry_delay)
                     continue
                 else:
-                    # Log error but don't fail the order creation
                     print(f"Failed to publish to RabbitMQ after {max_retries} attempts: {e}")
                     return False
             except Exception as e:
@@ -52,15 +47,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         return False
 
     def perform_create(self, serializer):
-        # Extract user_id from header (set by API Gateway after JWT validation)
         user_id = self.request.headers.get('X-User-ID')
         if not user_id:
             raise serializers.ValidationError({"error": "User ID not found in request"})
         
-        # Save the order with user_id from JWT
         order = serializer.save(user_id=int(user_id))
 
-        # Publish event to RabbitMQ (with retry logic, but don't fail order creation if it fails)
         event = {
             'event': 'order_created',
             'order_id': order.id,

@@ -1,21 +1,13 @@
-import pika
-import json
-import os
-import sys
-import django
-import time
+import pika, json, os, sys, django, time
 
-# Add the parent directory to Python path so Django can find the settings module
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
-# Set up Django environment
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'notification_service.settings')
 django.setup()
 
 from notifications.models import Notification
 
-# Get RabbitMQ host from environment variable, default to 'localhost' for local development
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 
 def callback(ch, method, properties, body):
@@ -33,7 +25,6 @@ def callback(ch, method, properties, body):
         print(f"Error processing notification: {e}")
 
 def connect_to_rabbitmq(max_retries=30, retry_delay=2):
-    """Connect to RabbitMQ with retry logic"""
     for attempt in range(max_retries):
         try:
             print(f"Attempting to connect to RabbitMQ at {RABBITMQ_HOST} (attempt {attempt + 1}/{max_retries})...")
